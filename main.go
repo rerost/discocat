@@ -11,6 +11,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 )
@@ -22,7 +23,6 @@ var (
 	username   string
 	channel    string
 	file       string
-	filename   string
 	webhookURL string
 )
 
@@ -47,9 +47,8 @@ func init() {
 	flag.StringVar(&username, "username", "", "Set the username")
 	flag.StringVar(&channel, "channel", "", "Set the channel (not applicable for webhooks)")
 	flag.StringVar(&channel, "c", "", "Set the channel (shorthand, not applicable for webhooks)")
-	flag.StringVar(&file, "file", "", "Specify the file to send")
-	flag.StringVar(&file, "f", "", "Specify the file to send (shorthand)")
-	flag.StringVar(&filename, "filename", DefaultFileName, "Specify the filename")
+	flag.StringVar(&file, "file", "", "Specify the file to send. --file=hoge.txt or --file=foo.txt,bar.txt")
+	flag.StringVar(&file, "f", "", "Specify the file to send (shorthand). -f=hoge.txt or -f=foo.txt,bar.txt")
 	flag.StringVar(&webhookURL, "webhook", "", "Specify the webhook URL")
 }
 
@@ -108,12 +107,7 @@ func main() {
 
 	// Prepare the payload and send the message
 	if file != "" {
-		// Send the file as an attachment
-		if filename == DefaultFileName {
-			// If filename is not specified, use the base name of the file
-			filename = filepath.Base(file)
-		}
-		err = sendFile(webhookURL, file, filename, username)
+		err = sendFile(webhookURL, file, username)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "Error:", err)
 			os.Exit(1)
@@ -272,7 +266,8 @@ func splitMessage(content string, maxLength int) []string {
 	return contents
 }
 
-func sendFile(webhookURL, filePath, filename, username string) error {
+func sendFile(webhookURL, filePath, username string) error {
+	_, filename := path.Split(filePath)
 	file, err := os.Open(filePath)
 	if err != nil {
 		return fmt.Errorf("failed to open the file: %w", err)
@@ -354,6 +349,5 @@ func usage() {
 	fmt.Println("        --username <username>       Set the username")
 	fmt.Println("    -c, --channel <channel>         Set the channel (not applicable for webhooks)")
 	fmt.Println("    -f, --file <file>               Specify the file to send")
-	fmt.Println("        --filename <filename>       [default: no_name]")
 	fmt.Println("        --webhook <webhook_url>     Specify the webhook URL")
 }
