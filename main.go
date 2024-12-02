@@ -22,7 +22,7 @@ var (
 	version    bool
 	username   string
 	channel    string
-	file       string
+	files      []string
 	webhookURL string
 )
 
@@ -47,8 +47,14 @@ func init() {
 	flag.StringVar(&username, "username", "", "Set the username")
 	flag.StringVar(&channel, "channel", "", "Set the channel (not applicable for webhooks)")
 	flag.StringVar(&channel, "c", "", "Set the channel (shorthand, not applicable for webhooks)")
-	flag.StringVar(&file, "file", "", "Specify the file to send. --file=hoge.txt or --file=foo.txt,bar.txt")
-	flag.StringVar(&file, "f", "", "Specify the file to send (shorthand). -f=hoge.txt or -f=foo.txt,bar.txt")
+	flag.Func("file", "Specify the file to send. --file=hoge.txt or --file=foo.txt --file=bar.txt", func(v string) error {
+		files = append(files, v)
+		return nil
+	})
+	flag.Func("f", "Specify the file to send (short hand). --file=hoge.txt or --file=foo.txt --file=bar.txt", func(v string) error {
+		files = append(files, v)
+		return nil
+	})
 	flag.StringVar(&webhookURL, "webhook", "", "Specify the webhook URL")
 }
 
@@ -106,8 +112,8 @@ func main() {
 	}
 
 	// Prepare the payload and send the message
-	if file != "" {
-		err = sendFile(webhookURL, file, username)
+	if len(files) != 0 {
+		err = sendFile(webhookURL, files, username)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "Error:", err)
 			os.Exit(1)
@@ -266,28 +272,33 @@ func splitMessage(content string, maxLength int) []string {
 	return contents
 }
 
-func sendFile(webhookURL, filePath, username string) error {
-	_, filename := path.Split(filePath)
-	file, err := os.Open(filePath)
-	if err != nil {
-		return fmt.Errorf("failed to open the file: %w", err)
-	}
-	defer func() {
-		if err := file.Close(); err != nil {
-			fmt.Fprintln(os.Stderr, "Error closing file:", err)
-		}
-	}()
-
+func sendFile(webhookURL string, filePaths []string, username string) error {
 	var b bytes.Buffer
 	w := multipart.NewWriter(&b)
 
-	// Add the file part
-	fw, err := w.CreateFormFile("file", filename)
-	if err != nil {
-		return fmt.Errorf("failed to create form file: %w", err)
-	}
-	if _, err = io.Copy(fw, file); err != nil {
-		return fmt.Errorf("failed to copy file content: %w", err)
+	for i, filePath := range filePaths {
+		_, filename := path.Split(filePath)
+		file, err := os.Open(filePath)
+		if err != nil {
+			return fmt.Errorf("failed to open the file: %w", err)
+		}
+		defer func() {
+			if err := file.Close(); err != nil {
+				fmt.Fprintln(os.Stderr, "Error closing file:", err)
+			}
+		}()
+
+		// Add the file part
+		fw, err := w.CreateFormFile(
+			fmt.Sprintf("file[%d]", i),
+			filename,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to create form file: %w", err)
+		}
+		if _, err = io.Copy(fw, file); err != nil {
+			return fmt.Errorf("failed to copy file content: %w", err)
+		}
 	}
 
 	// Add the payload part
@@ -299,7 +310,7 @@ func sendFile(webhookURL, filePath, username string) error {
 	if err != nil {
 		return fmt.Errorf("failed to encode payload to JSON: %w", err)
 	}
-	fw, err = w.CreateFormField("payload_json")
+	fw, err := w.CreateFormField("payload_json")
 	if err != nil {
 		return fmt.Errorf("failed to create payload field: %w", err)
 	}
