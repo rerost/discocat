@@ -47,12 +47,18 @@ func init() {
 	flag.StringVar(&username, "username", "", "Set the username")
 	flag.StringVar(&channel, "channel", "", "Set the channel (not applicable for webhooks)")
 	flag.StringVar(&channel, "c", "", "Set the channel (shorthand, not applicable for webhooks)")
-	flag.Func("file", "Specify the file to send. --file=hoge.txt or --file=foo.txt --file=bar.txt", func(v string) error {
-		files = append(files, v)
-		return nil
-	})
-	flag.Func("f", "Specify the file to send (short hand). --file=hoge.txt or --file=foo.txt --file=bar.txt", func(v string) error {
-		files = append(files, v)
+	flag.Func("f", "Specify the file to send (short hand). --f=hoge.txt or --f=foo.txt --f=bar.txt or -f='*.txt'", func(v string) error {
+		// ワイルドカードを展開
+		matches, err := filepath.Glob(v)
+		if err != nil {
+			return fmt.Errorf("invalid pattern: %s", v)
+		}
+		if len(matches) == 0 {
+			return fmt.Errorf("no files matched pattern: %s", v)
+		}
+		fmt.Println(matches)
+
+		files = append(files, matches...)
 		return nil
 	})
 	flag.StringVar(&webhookURL, "webhook", "", "Specify the webhook URL")
@@ -352,6 +358,6 @@ func usage() {
 	fmt.Println("\nOPTIONS:")
 	fmt.Println("        --username <username>       Set the username")
 	fmt.Println("    -c, --channel <channel>         Set the channel (not applicable for webhooks)")
-	fmt.Println("    -f, --file <file>               Specify the file to send")
+	fmt.Println("    -f  <file>               Specify the file to send")
 	fmt.Println("        --webhook <webhook_url>     Specify the webhook URL")
 }
