@@ -148,13 +148,6 @@ func runConfigure(configPath string) error {
 	}
 	config.WebhookURL = strings.TrimSpace(webhookInput)
 
-	fmt.Print("Enter the default username (optional): ")
-	usernameInput, err := reader.ReadString('\n')
-	if err != nil {
-		return fmt.Errorf("failed to read the username: %w", err)
-	}
-	config.Username = strings.TrimSpace(usernameInput)
-
 	// Validate the webhook URL
 	if config.WebhookURL == "" {
 		return errors.New("webhook URL cannot be empty")
