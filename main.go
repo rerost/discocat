@@ -145,14 +145,20 @@ func main() {
 
 func runConfigure(configPath string) error {
 	config := Config{}
-	reader := bufio.NewReader(os.Stdin)
 
-	fmt.Print("Enter the Webhook URL: ")
-	webhookInput, err := reader.ReadString('\n')
-	if err != nil {
-		return fmt.Errorf("failed to read the webhook URL: %w", err)
+	// webhookURLがコマンドラインで指定されている場合はそれを使用
+	if webhookURL != "" {
+		config.WebhookURL = webhookURL
+	} else {
+		// コマンドラインで指定されていない場合は入力を求める
+		reader := bufio.NewReader(os.Stdin)
+		fmt.Print("Enter the Webhook URL: ")
+		webhookInput, err := reader.ReadString('\n')
+		if err != nil {
+			return fmt.Errorf("failed to read the webhook URL: %w", err)
+		}
+		config.WebhookURL = strings.TrimSpace(webhookInput)
 	}
-	config.WebhookURL = strings.TrimSpace(webhookInput)
 
 	// Validate the webhook URL
 	if config.WebhookURL == "" {
